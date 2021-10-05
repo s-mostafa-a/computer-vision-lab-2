@@ -64,3 +64,31 @@ def gaussian_kernel(shape=(5, 5), cutoff_frequency=1.):
 def box_kernel(shape=(3, 3)):
     kernel = np.ones(shape)
     return kernel / np.sum(kernel)
+
+
+def sobel_derivative_kernel():
+    dx = np.array([[-1, 0, 1],
+                   [-2, 0, 2],
+                   [-1, 0, 1]])
+    dy = np.array([[1, 2, 1],
+                   [0, 0, 0],
+                   [-1, -2, -1]])
+    return dx, dy
+
+
+def prewitt_derivative_kernel():
+    dx = np.array([[-1, 0, 1],
+                   [-1, 0, 1],
+                   [-1, 0, 1]])
+    dy = np.array([[1, 1, 1],
+                   [0, 0, 0],
+                   [-1, -1, -1]])
+    return dx, dy
+
+
+def roberts_derivative_kernel():
+    dx = np.array([[0, 1],
+                   [-1, 0]])
+    dy = np.array([[1, 0],
+                   [0, -1]])
+    return dx, dy
