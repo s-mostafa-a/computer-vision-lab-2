@@ -92,3 +92,11 @@ def roberts_derivative_kernel():
     dy = np.array([[1, 0],
                    [0, -1]])
     return dx, dy
+
+
+def argmax_2d(img: np.array):
+    max1 = np.max(img, axis=0)
+    argmax1 = np.argmax(img, axis=0)
+    argmax2 = np.argmax(max1, axis=0)
+    argmax2d = (argmax1[argmax2], argmax2)
+    return argmax2d
