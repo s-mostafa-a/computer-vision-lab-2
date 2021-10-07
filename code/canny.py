@@ -22,7 +22,7 @@ def non_max_suppression(edge_strength, edge_direction, alpha):
     assert 0 < alpha < 90, "alpha is a degree between 0 and 90 (non-inclusive)"
     beta = 90 - alpha
     padded_image = np.pad(edge_strength, [(1,), (1,)])
-    result = np.zeros_like(edge_strength)
+    result = np.zeros_like(padded_image)
     for i in range(1, edge_strength.shape[0] - 1):
         for j in range(1, edge_strength.shape[1] - 1):
             if (-alpha / 2 <= edge_direction[i - 1, j - 1] <= alpha / 2) or (
@@ -68,26 +68,70 @@ def hysteresis(image, strong=255):
     for lbl in range(1, num_features + 1):
         row, col = np.where(labeled_array == lbl)
         if np.max(image[row, col]) != strong:
-            image[row, col] = .0
+            image[row, col] = 0.
         else:
-            image[row, col] = strong
+            image[row, col] = 1.
     return image
 
 
-def canny():
-    bears = np.array(Image.open("../data/source/100075-original.jpg").convert('L'))
-    image_x, image_y = derivatives(bears)
+def show_distribution_histogram(image):
+    plt.hist(image.ravel(), bins=256)
+    plt.show()
+
+
+def canny(image, weak=128, strong=255, cutoff_frequency=3, alpha=53, low=25):
+    high = 2 * low
+    image_x, image_y = derivatives(image, gaussian_cutoff_frequency=cutoff_frequency)
     edge_strength = np.sqrt(np.power(image_x, 2) + np.power(image_y, 2))
     edge_direction = np.degrees(np.arctan(image_x / image_y))
-    plt.hist(edge_strength.ravel(), bins=256)
-    plt.show()
-    res = non_max_suppression(edge_strength=edge_strength, edge_direction=edge_direction, alpha=53)
-    res = threshold(res, 25, 50)
-    res = hysteresis(res)
-    plt.axis('off')
-    plt.imshow(res, cmap='gray')
-    plt.show()
+    result = non_max_suppression(edge_strength=edge_strength, edge_direction=edge_direction,
+                                 alpha=alpha)
+    result = threshold(result, low=low, high=high, weak=weak, strong=strong)
+    result = hysteresis(result, strong=strong)
+    return result
+
+
+def quality_assessment(detection, ground_truth):
+    assert np.min(ground_truth) == 0 and np.max(ground_truth) == 1 and 0 <= np.min(
+        detection) <= 1 and 0 <= np.max(detection) <= 1, f"""{np.min(ground_truth)}, {
+    np.max(ground_truth)}, {np.min(detection)}, {np.max(detection)}"""
+    ground_truth_inverse = 1 - ground_truth
+    tpr = np.sum(detection * ground_truth) / np.sum(ground_truth)
+    fpr = np.sum(detection * ground_truth_inverse) / np.sum(ground_truth_inverse)
+    return tpr, fpr
+
+
+def loop_for_training(image, ground_truth, save_plots=True):
+    stn = 255
+    wk = 128
+    ground_truth = np.invert(ground_truth)
+    ground_truth[ground_truth > wk] = stn
+    ground_truth[ground_truth <= wk] = 0
+    ground_truth = ground_truth / stn
+
+    cut_offs = [17, 15, 13, 11, 9, 7, 5, 3, 1]
+    alphas = [45, 53, 60]
+    lows = [i for i in range(10, 42, 2)]
+    for cut_off in cut_offs:
+        for alpha in alphas:
+            roc_ys = []
+            roc_xs = []
+            for low in lows:
+                detection = canny(image=image, weak=wk, strong=stn, cutoff_frequency=cut_off,
+                                  alpha=alpha, low=low)
+                roc_y, roc_x = quality_assessment(detection=detection, ground_truth=ground_truth)
+                roc_xs.append(roc_x)
+                roc_ys.append(roc_y)
+            plt.plot(roc_xs, roc_ys)
+            plt.title(f'cut_off={cut_off}, alpha={alpha}')
+            plt.xlabel('false positive rate')
+            plt.ylabel('true positive rate')
+            if save_plots:
+                plt.savefig(f"../data/result/plots/cutoff_{cut_off}__alpha_{alpha}.jpeg")
+            plt.show()
 
 
 if __name__ == '__main__':
-    canny()
+    img = np.array(Image.open("../data/source/100075-original.jpg").convert('L'))
+    gnd_trt = np.array(Image.open("../data/source/100075-reference.jpg").convert('L'))
+    loop_for_training(image=img, ground_truth=gnd_trt)
