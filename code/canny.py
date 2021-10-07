@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from code.utils import gaussian_kernel, get_convolved_image, argmax_2d
 from code.utils import sobel_derivative_kernel
-from copy import deepcopy
+from scipy.ndimage import label
 
 
 def derivatives(image, derivative_kernel=sobel_derivative_kernel(), gaussian_cutoff_frequency=3):
@@ -18,25 +18,31 @@ def derivatives(image, derivative_kernel=sobel_derivative_kernel(), gaussian_cut
     return image_x, image_y
 
 
-def non_max_suppression_45_45(edge_strength, edge_direction):
+def non_max_suppression(edge_strength, edge_direction, alpha):
+    assert 0 < alpha < 90, "alpha is a degree between 0 and 90 (non-inclusive)"
+    beta = 90 - alpha
     padded_image = np.pad(edge_strength, [(1,), (1,)])
     result = np.zeros_like(edge_strength)
     for i in range(1, edge_strength.shape[0] - 1):
         for j in range(1, edge_strength.shape[1] - 1):
-            if (-22.5 <= edge_direction[i - 1, j - 1] <= 22.5) or (
-                    157.5 < edge_direction[i - 1, j - 1] or edge_direction[i - 1, j - 1] < -157.5):
+            if (-alpha / 2 <= edge_direction[i - 1, j - 1] <= alpha / 2) or (
+                    180 - alpha / 2 < edge_direction[i - 1, j - 1] or
+                    edge_direction[i - 1, j - 1] < -180 + alpha / 2):
                 side_1 = padded_image[i - 1, j]
                 side_2 = padded_image[i + 1, j]
-            elif (22.5 < edge_direction[i - 1, j - 1] <= 67.5) or (
-                    -112.5 > edge_direction[i - 1, j - 1] >= -157.5):
+            elif (alpha / 2 < edge_direction[i - 1, j - 1] <= beta + alpha / 2) or (
+                    -180 + beta + alpha / 2 > edge_direction[i - 1, j - 1] >= -180 + alpha / 2):
                 side_1 = padded_image[i - 1, j - 1]
                 side_2 = padded_image[i + 1, j + 1]
-            elif (67.5 < edge_direction[i - 1, j - 1] <= 112.5) or (
-                    -67.5 > edge_direction[i - 1, j - 1] >= -112.5):
+            elif (beta + alpha / 2 < edge_direction[i - 1, j - 1] <= beta + 3 * alpha / 2) or (
+                    -180 + beta + 3 * alpha / 2 > edge_direction[
+                i - 1, j - 1] >= -180 + beta + alpha / 2):
                 side_1 = padded_image[i, j - 1]
                 side_2 = padded_image[i, j + 1]
-            elif (112.5 < edge_direction[i - 1, j - 1] <= 157.5) or (
-                    -22.5 > edge_direction[i - 1, j - 1] >= -67.5):
+            elif (beta + 3 * alpha / 2 < edge_direction[
+                i - 1, j - 1] <= 2 * beta + 3 * alpha / 2) or (
+                    -180 + 2 * beta + 3 * alpha / 2 > edge_direction[
+                i - 1, j - 1] >= -180 + beta + 3 * alpha / 2):
                 side_1 = padded_image[i - 1, j + 1]
                 side_2 = padded_image[i + 1, j - 1]
             else:
@@ -47,63 +53,40 @@ def non_max_suppression_45_45(edge_strength, edge_direction):
     return result[1:-1, 1:-1]
 
 
-def non_max_suppression_53_37(edge_strength, edge_direction):
-    padded_image = np.pad(edge_strength, [(1,), (1,)])
-    result = np.zeros_like(edge_strength)
-    for i in range(1, edge_strength.shape[0] - 1):
-        for j in range(1, edge_strength.shape[1] - 1):
-            if (-26.5 <= edge_direction[i - 1, j - 1] <= 26.5) or (
-                    153.5 < edge_direction[i - 1, j - 1] or edge_direction[i - 1, j - 1] < -153.5):
-                side_1 = padded_image[i - 1, j]
-                side_2 = padded_image[i + 1, j]
-            elif (26.5 < edge_direction[i - 1, j - 1] <= 63.5) or (
-                    -116.5 > edge_direction[i - 1, j - 1] >= -153.5):
-                side_1 = padded_image[i - 1, j - 1]
-                side_2 = padded_image[i + 1, j + 1]
-            elif (63.5 < edge_direction[i - 1, j - 1] <= 116.5) or (
-                    -63.5 > edge_direction[i - 1, j - 1] >= -116.5):
-                side_1 = padded_image[i, j - 1]
-                side_2 = padded_image[i, j + 1]
-            elif (116.5 < edge_direction[i - 1, j - 1] <= 153.5) or (
-                    -26.5 > edge_direction[i - 1, j - 1] >= -63.5):
-                side_1 = padded_image[i - 1, j + 1]
-                side_2 = padded_image[i + 1, j - 1]
-            else:
-                side_1 = None
-                side_2 = None
-            if (padded_image[i, j] > side_1) and (padded_image[i, j] > side_2):
-                result[i, j] = padded_image[i, j]
-    return result[1:-1, 1:-1]
+def threshold(image, low, high, strong=255, weak=100):
+    result = np.zeros(image.shape)
+    strong_row, strong_col = np.where(image >= high)
+    weak_row, weak_col = np.where((image < high) & (image >= low))
+    result[strong_row, strong_col] = strong
+    result[weak_row, weak_col] = weak
+    return result
+
+
+def hysteresis(image, strong=255):
+    structure = np.ones((3, 3), dtype=int)
+    labeled_array, num_features = label(image, structure=structure)
+    for lbl in range(1, num_features + 1):
+        row, col = np.where(labeled_array == lbl)
+        if np.max(image[row, col]) != strong:
+            image[row, col] = .0
+        else:
+            image[row, col] = strong
+    return image
 
 
 def canny():
     bears = np.array(Image.open("../data/source/100075-original.jpg").convert('L'))
-    # plt.axis('off')
-    # plt.imshow(bears, cmap='gray')
-    # plt.show()
     image_x, image_y = derivatives(bears)
-    # plt.axis('off')
-    # plt.imshow(x, cmap='gray')
-    # plt.show()
-    #
-    # plt.axis('off')
-    # plt.imshow(y, cmap='gray')
-    # plt.show()
     edge_strength = np.sqrt(np.power(image_x, 2) + np.power(image_y, 2))
     edge_direction = np.degrees(np.arctan(image_x / image_y))
+    plt.hist(edge_strength.ravel(), bins=256)
+    plt.show()
+    res = non_max_suppression(edge_strength=edge_strength, edge_direction=edge_direction, alpha=53)
+    res = threshold(res, 25, 50)
+    res = hysteresis(res)
     plt.axis('off')
-    es_slice = deepcopy(edge_strength[100:150, 100:150])
-    ed_slice = deepcopy(edge_direction[100:150, 100:150])
-    res = non_max_suppression_53_37(edge_strength=es_slice, edge_direction=ed_slice)
     plt.imshow(res, cmap='gray')
     plt.show()
-    plt.axis('off')
-    res = non_max_suppression_45_45(edge_strength=es_slice, edge_direction=ed_slice)
-    plt.imshow(res, cmap='gray')
-    plt.show()
-    # plt.axis('off')
-    # plt.imshow(edge_direction, cmap='gray')
-    # plt.show()
 
 
 if __name__ == '__main__':
