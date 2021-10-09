@@ -79,8 +79,8 @@ def show_distribution_histogram(image):
     plt.show()
 
 
-def canny(image, weak=128, strong=255, cutoff_frequency=3, alpha=53, low=25):
-    high = 2 * low
+def canny(image, weak=128, strong=255, cutoff_frequency=3, alpha=53, low=25, high=50):
+    assert low < high
     image_x, image_y = derivatives(image, gaussian_cutoff_frequency=cutoff_frequency)
     edge_strength = np.sqrt(np.power(image_x, 2) + np.power(image_y, 2))
     edge_direction = np.degrees(np.arctan(image_x / image_y))
@@ -163,11 +163,19 @@ if __name__ == '__main__':
     gnd_trt = np.array(Image.open("../data/source/42049-reference.jpg").convert('L'))
     stn = 255
     wk = 128
-    dtc = canny(image=img, weak=wk, strong=stn, cutoff_frequency=1,
-                alpha=71, low=28)
+    gnd_trt = np.invert(gnd_trt)
+    gnd_trt[gnd_trt > wk] = stn
+    gnd_trt[gnd_trt <= wk] = 0
+    gnd_trt = gnd_trt / stn
+    #5 45 10
+    #3 70 20
+    #5 70 20 60
+    #3 40 25 30
+    dtc = canny(image=img, weak=wk, strong=stn, cutoff_frequency=4, alpha=40, low=19, high=25)
 
     plt.imshow(dtc, cmap='gray')
     plt.show()
+    print(quality_assessment(detection=dtc, ground_truth=gnd_trt))
     exit(0)
 
     # gnd_trt = np.invert(gnd_trt)

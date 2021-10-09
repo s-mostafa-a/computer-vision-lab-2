@@ -2,7 +2,7 @@ import numpy as np
 from code.canny import canny, quality_assessment
 from PIL import Image
 
-CANNY_PARAMETERS_NUMBER = 3
+CANNY_PARAMETERS_NUMBER = 4
 SOLUTION_PER_POPULATION = 8
 PARENTS_MATING_NUMBER = 4
 
@@ -12,10 +12,11 @@ def cal_pop_fitness(image, weak, strong, ground_truth, population):
     for gene_i in range(population.shape[0]):
         detection = canny(image=image, weak=weak, strong=strong,
                           cutoff_frequency=population[gene_i, 0],
-                          alpha=population[gene_i, 1], low=population[gene_i, 2])
-        true_positive_rate, _, accuracy = quality_assessment(detection=detection,
-                                                             ground_truth=ground_truth)
-        fitness.append(true_positive_rate + accuracy)
+                          alpha=population[gene_i, 1], low=population[gene_i, 2],
+                          high=population[gene_i, 3])
+        true_positive_rate, false_positive_rate, accuracy = quality_assessment(
+            detection=detection, ground_truth=ground_truth)
+        fitness.append(true_positive_rate + accuracy - false_positive_rate)
     return np.array(fitness)
 
 
@@ -52,7 +53,13 @@ def mutation(offspring_crossover):
             if 10 < offspring_crossover[idx, rnt] + random_value < 80:
                 offspring_crossover[idx, rnt] = offspring_crossover[idx, rnt] + random_value
         elif rnt == 2:
-            offspring_crossover[idx, rnt] = offspring_crossover[idx, rnt] + random_value
+            if offspring_crossover[idx, rnt] + random_value >= offspring_crossover[idx, rnt + 1]:
+                offspring_crossover[idx, rnt + 1] += random_value
+            offspring_crossover[idx, rnt] += random_value
+        elif rnt == 3:
+            if offspring_crossover[idx, rnt - 1] >= offspring_crossover[idx, rnt] + random_value:
+                offspring_crossover[idx, rnt - 1] += random_value
+            offspring_crossover[idx, rnt] += random_value
     return offspring_crossover
 
 
@@ -67,21 +74,21 @@ if __name__ == '__main__':
     gnd_trt = gnd_trt / stn
 
     population_size = (SOLUTION_PER_POPULATION, CANNY_PARAMETERS_NUMBER)
-    new_population = np.array([[11, 53, 20],
-                               [9, 60, 30],
-                               [7, 45, 15],
-                               [1, 30, 10],
-                               [3, 40, 25],
-                               [5, 70, 20],
-                               [9, 55, 32],
-                               [13, 48, 10]])
+    new_population = np.array([[11, 53, 20, 40],
+                               [9, 60, 30, 40],
+                               [7, 45, 15, 20],
+                               [1, 30, 10, 50],
+                               [3, 40, 25, 30],
+                               [5, 40, 20, 61],
+                               [9, 55, 32, 70],
+                               [13, 48, 10, 20]])
     print("First Generation:\n", new_population)
     num_generations = 500
     for generation in range(num_generations):
         fit = cal_pop_fitness(image=img, weak=wk, strong=stn, ground_truth=gnd_trt,
                               population=new_population)
         best_match_idx = np.where(fit == np.max(fit))
-        print(f"Best solution in generation({generation - 1}):", new_population[best_match_idx, :])
+        print(f"Best solution in generation({generation}):", new_population[best_match_idx, :])
         print("Best solution fitness:", fit[best_match_idx])
         parents = select_mating_pool(new_population, fit, PARENTS_MATING_NUMBER)
         offspring_crossover = crossover(parents, offspring_size=(
