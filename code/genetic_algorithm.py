@@ -46,7 +46,7 @@ def mutation(offspring_crossover):
         random_value = np.random.randint(-5, 6)
         rnt = np.random.randint(0, CANNY_PARAMETERS_NUMBER)
         if rnt == 0:
-            random_value = (random_value // 2) * 2 + 1
+            random_value = (random_value // 2) * 2
             if offspring_crossover[idx, rnt] + random_value > 0:
                 offspring_crossover[idx, rnt] = offspring_crossover[idx, rnt] + random_value
         elif rnt == 1:
@@ -74,14 +74,24 @@ if __name__ == '__main__':
     gnd_trt = gnd_trt / stn
 
     population_size = (SOLUTION_PER_POPULATION, CANNY_PARAMETERS_NUMBER)
-    new_population = np.array([[11, 53, 20, 40],
-                               [9, 60, 30, 40],
-                               [7, 45, 15, 20],
-                               [1, 30, 10, 50],
-                               [3, 40, 25, 30],
-                               [5, 40, 20, 61],
-                               [9, 55, 32, 70],
-                               [13, 48, 10, 20]])
+    new_population = []
+    cutoff_normal_dist = []
+    first_half_dist_for_cutoff = np.array([i for i in range(9) for _ in range(i) if i % 2 != 0])
+    second_half_dist_for_cutoff = 18 - first_half_dist_for_cutoff
+    dist_for_cutoff = np.concatenate((first_half_dist_for_cutoff, second_half_dist_for_cutoff))
+
+    for _ in range(SOLUTION_PER_POPULATION):
+        first_half_dist_for_cutoff = np.array(
+            [i for i in range(9) for _ in range(i) if i % 2 != 0])
+        second_half_dist_for_cutoff = 18 - first_half_dist_for_cutoff
+        dist_for_cutoff = np.concatenate((first_half_dist_for_cutoff, second_half_dist_for_cutoff))
+        cutoff = np.random.choice(dist_for_cutoff)
+
+        alpha = np.random.randint(15, 75)
+        low = np.random.randint(10, 100)
+        high = np.random.randint(low + 1, 103)
+        new_population.append([cutoff, alpha, low, high])
+    new_population = np.array(new_population)
     print("First Generation:\n", new_population)
     num_generations = 500
     for generation in range(num_generations):
