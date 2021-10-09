@@ -96,9 +96,14 @@ def quality_assessment(detection, ground_truth):
         detection) <= 1 and 0 <= np.max(detection) <= 1, f"""{np.min(ground_truth)}, {
     np.max(ground_truth)}, {np.min(detection)}, {np.max(detection)}"""
     ground_truth_inverse = 1 - ground_truth
-    tpr = np.sum(detection * ground_truth) / np.sum(ground_truth)
-    fpr = np.sum(detection * ground_truth_inverse) / np.sum(ground_truth_inverse)
-    return tpr, fpr
+    detection_inverse = 1 - detection
+    tp = np.sum(detection * ground_truth)
+    tn = np.sum(detection_inverse * ground_truth_inverse)
+    fp = np.sum(detection * ground_truth_inverse)
+    tpr = tp / np.sum(ground_truth)
+    fpr = fp / np.sum(ground_truth_inverse)
+    accuracy = (tn + tp) / (detection.shape[0] * detection.shape[1])
+    return tpr, fpr, accuracy
 
 
 def loop_for_training(image, ground_truth, save_plots=True):
@@ -109,29 +114,66 @@ def loop_for_training(image, ground_truth, save_plots=True):
     ground_truth[ground_truth <= wk] = 0
     ground_truth = ground_truth / stn
 
-    cut_offs = [17, 15, 13, 11, 9, 7, 5, 3, 1]
+    cut_offs = [11, 9, 7, 5, 3, 1]
     alphas = [45, 53, 60]
-    lows = [i for i in range(10, 42, 2)]
+    lows = [i for i in range(2, 42, 2)]
+    max_accuracy = 0
+    best_accuracy = None
+    max_tpr = 0
+    best_tpr = None
+    all_tprs = []
+    acrs = []
     for cut_off in cut_offs:
         for alpha in alphas:
-            roc_ys = []
-            roc_xs = []
+            tprs = []
+            fprs = []
             for low in lows:
                 detection = canny(image=image, weak=wk, strong=stn, cutoff_frequency=cut_off,
                                   alpha=alpha, low=low)
-                roc_y, roc_x = quality_assessment(detection=detection, ground_truth=ground_truth)
-                roc_xs.append(roc_x)
-                roc_ys.append(roc_y)
-            plt.plot(roc_xs, roc_ys)
+                tpr, fpr, acr = quality_assessment(detection=detection,
+                                                   ground_truth=ground_truth)
+                if acr > max_accuracy:
+                    max_accuracy = acr
+                    best_accuracy = (cut_off, alpha, low)
+                if tpr > max_tpr:
+                    max_tpr = tpr
+                    best_tpr = (cut_off, alpha, low)
+                fprs.append(fpr)
+                tprs.append(tpr)
+                acrs.append(acr)
+            all_tprs += tprs
+            plt.plot(fprs, tprs)
             plt.title(f'cut_off={cut_off}, alpha={alpha}')
             plt.xlabel('false positive rate')
             plt.ylabel('true positive rate')
             if save_plots:
                 plt.savefig(f"../data/result/plots/cutoff_{cut_off}__alpha_{alpha}.jpeg")
             plt.show()
+    plt.scatter(all_tprs, acrs, 1)
+    plt.xlabel('true positive rates')
+    plt.ylabel('accuracies')
+    plt.savefig(f"../data/result/plots/scatter_plot.jpeg")
+    plt.show()
+    print(f'best_accuracy combination: {best_accuracy}, accuracy:{max_accuracy}')
+    print(f'best_tpr combination: {best_tpr}, true positive rate:{max_tpr}')
 
 
 if __name__ == '__main__':
-    img = np.array(Image.open("../data/source/100075-original.jpg").convert('L'))
-    gnd_trt = np.array(Image.open("../data/source/100075-reference.jpg").convert('L'))
+    img = np.array(Image.open("../data/source/42049-original.jpg").convert('L'))
+    gnd_trt = np.array(Image.open("../data/source/42049-reference.jpg").convert('L'))
+    stn = 255
+    wk = 128
+    dtc = canny(image=img, weak=wk, strong=stn, cutoff_frequency=1,
+                alpha=71, low=28)
+
+    plt.imshow(dtc, cmap='gray')
+    plt.show()
+    exit(0)
+
+    # gnd_trt = np.invert(gnd_trt)
+    # gnd_trt[gnd_trt > wk] = stn
+    # gnd_trt[gnd_trt <= wk] = 0
+    # gnd_trt = gnd_trt / stn
+    # print(quality_assessment(np.zeros_like(gnd_trt), gnd_trt))
+    # exit(0)
     loop_for_training(image=img, ground_truth=gnd_trt)
