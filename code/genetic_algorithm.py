@@ -7,7 +7,7 @@ SOLUTION_PER_POPULATION = 8
 PARENTS_MATING_NUMBER = 4
 
 
-def cal_pop_fitness(image, weak, strong, ground_truth, population):
+def population_fitness(image, weak, strong, ground_truth, population):
     fitness = []
     for gene_i in range(population.shape[0]):
         detection = canny(image=image, weak=weak, strong=strong,
@@ -20,13 +20,6 @@ def cal_pop_fitness(image, weak, strong, ground_truth, population):
     return np.array(fitness)
 
 
-def select_mating_pool(population, fitness, num_parents):
-    order = np.argsort(fit, )
-    population_sorted = np.array(population, dtype=population.dtype)[order, :]
-    fitness_sorted = np.array(fitness, dtype=fitness.dtype)[order]
-    return population_sorted[-num_parents:], fitness_sorted[-num_parents:]
-
-
 def random_take_out(population, size, probability):
     list_of_indices = list([_ for _ in range(population.shape[0])])
     probability_distribution = probability / np.sum(probability)
@@ -35,37 +28,37 @@ def random_take_out(population, size, probability):
     return population[draw]
 
 
-def crossover(parents, parents_fitness, offspring_size):
+def crossover(parents, offspring_size):
     offspring = np.empty(offspring_size)
     crossover_point = np.uint8(offspring_size[1] / 2)
     for k in range(offspring_size[0]):
-        parent1_idx = k % parents.shape[0]
-        parent2_idx = (k + 1) % parents.shape[0]
-        offspring[k, 0:crossover_point] = parents[parent1_idx, 0:crossover_point]
-        offspring[k, crossover_point:] = parents[parent2_idx, crossover_point:]
+        maters = random_take_out(population=parents, size=2,
+                                 probability=np.ones(shape=(parents.shape[0])))
+        offspring[k, 0:crossover_point] = maters[0, 0:crossover_point]
+        offspring[k, crossover_point:] = maters[1, crossover_point:]
     return offspring
 
 
-def mutation(offspring_crossover):
-    for idx in range(offspring_crossover.shape[0]):
+def mutation(children):
+    for idx in range(children.shape[0]):
         random_value = np.random.randint(-5, 6)
         rnt = np.random.randint(0, CANNY_PARAMETERS_NUMBER)
         if rnt == 0:
             random_value = (random_value // 2) * 2
-            if offspring_crossover[idx, rnt] + random_value > 0:
-                offspring_crossover[idx, rnt] = offspring_crossover[idx, rnt] + random_value
+            if children[idx, rnt] + random_value > 0:
+                children[idx, rnt] = children[idx, rnt] + random_value
         elif rnt == 1:
-            if 10 < offspring_crossover[idx, rnt] + random_value < 80:
-                offspring_crossover[idx, rnt] = offspring_crossover[idx, rnt] + random_value
+            if 10 < children[idx, rnt] + random_value < 80:
+                children[idx, rnt] = children[idx, rnt] + random_value
         elif rnt == 2:
-            if offspring_crossover[idx, rnt] + random_value >= offspring_crossover[idx, rnt + 1]:
-                offspring_crossover[idx, rnt + 1] += random_value
-            offspring_crossover[idx, rnt] += random_value
+            if children[idx, rnt] + random_value >= children[idx, rnt + 1]:
+                children[idx, rnt + 1] += random_value
+            children[idx, rnt] += random_value
         elif rnt == 3:
-            if offspring_crossover[idx, rnt - 1] >= offspring_crossover[idx, rnt] + random_value:
-                offspring_crossover[idx, rnt - 1] += random_value
-            offspring_crossover[idx, rnt] += random_value
-    return offspring_crossover
+            if children[idx, rnt - 1] >= children[idx, rnt] + random_value:
+                children[idx, rnt - 1] += random_value
+            children[idx, rnt] += random_value
+    return children
 
 
 if __name__ == '__main__':
@@ -100,13 +93,14 @@ if __name__ == '__main__':
     print("First Generation:\n", new_population)
     num_generations = 500
     for generation in range(num_generations):
-        fit = cal_pop_fitness(image=img, weak=wk, strong=stn, ground_truth=gnd_trt,
-                              population=new_population)
+        fit = population_fitness(image=img, weak=wk, strong=stn, ground_truth=gnd_trt,
+                                 population=new_population)
         best_match_idx = np.where(fit == np.max(fit))
         print(f"Best solution in generation({generation}):", new_population[best_match_idx, :])
         print("Best solution fitness:", fit[best_match_idx])
-        parentz, parentz_fitness = select_mating_pool(new_population, fit, PARENTS_MATING_NUMBER)
-        offspring_crossover = crossover(parentz, parentz_fitness, offspring_size=(
+        parentz = random_take_out(population=new_population, probability=fit,
+                                  size=PARENTS_MATING_NUMBER)
+        offspring_crossover = crossover(parentz, offspring_size=(
             population_size[0] - parentz.shape[0], CANNY_PARAMETERS_NUMBER))
         offspring_mutation = mutation(offspring_crossover)
         new_population[0:parentz.shape[0], :] = parentz
