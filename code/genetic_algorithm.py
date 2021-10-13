@@ -27,12 +27,12 @@ def select_mating_pool(population, fitness, num_parents):
     return population_sorted[-num_parents:], fitness_sorted[-num_parents:]
 
 
-def random_mating_pool(list_of_candidates, number_of_items_to_pick, probability_distribution):
-    list_of_indices = list([_ for _ in range(list_of_candidates.shape[0])])
-    probability_distribution = probability_distribution / np.sum(probability_distribution)
-    draw = np.random.choice(a=list_of_indices, size=number_of_items_to_pick,
-                            p=probability_distribution, replace=False)
-    return list_of_candidates[draw]
+def random_take_out(population, size, probability):
+    list_of_indices = list([_ for _ in range(population.shape[0])])
+    probability_distribution = probability / np.sum(probability)
+    draw = np.random.choice(a=list_of_indices, size=size, p=probability_distribution,
+                            replace=False)
+    return population[draw]
 
 
 def crossover(parents, parents_fitness, offspring_size):
