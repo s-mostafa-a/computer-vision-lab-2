@@ -20,17 +20,22 @@ def cal_pop_fitness(image, weak, strong, ground_truth, population):
     return np.array(fitness)
 
 
-def select_mating_pool(pop, fitness, num_parents):
-    parents = np.empty((num_parents, pop.shape[1]))
-    for parent_num in range(num_parents):
-        max_fitness_idx = np.where(fitness == np.max(fitness))
-        max_fitness_idx = max_fitness_idx[0][0]
-        parents[parent_num, :] = pop[max_fitness_idx, :]
-        fitness[max_fitness_idx] = -99999999999
-    return parents
+def select_mating_pool(population, fitness, num_parents):
+    order = np.argsort(fit, )
+    population_sorted = np.array(population, dtype=population.dtype)[order, :]
+    fitness_sorted = np.array(fitness, dtype=fitness.dtype)[order]
+    return population_sorted[-num_parents:], fitness_sorted[-num_parents:]
 
 
-def crossover(parents, offspring_size):
+def random_mating_pool(list_of_candidates, number_of_items_to_pick, probability_distribution):
+    list_of_indices = list([_ for _ in range(list_of_candidates.shape[0])])
+    probability_distribution = probability_distribution / np.sum(probability_distribution)
+    draw = np.random.choice(a=list_of_indices, size=number_of_items_to_pick,
+                            p=probability_distribution, replace=False)
+    return list_of_candidates[draw]
+
+
+def crossover(parents, parents_fitness, offspring_size):
     offspring = np.empty(offspring_size)
     crossover_point = np.uint8(offspring_size[1] / 2)
     for k in range(offspring_size[0]):
@@ -100,9 +105,9 @@ if __name__ == '__main__':
         best_match_idx = np.where(fit == np.max(fit))
         print(f"Best solution in generation({generation}):", new_population[best_match_idx, :])
         print("Best solution fitness:", fit[best_match_idx])
-        parents = select_mating_pool(new_population, fit, PARENTS_MATING_NUMBER)
-        offspring_crossover = crossover(parents, offspring_size=(
-            population_size[0] - parents.shape[0], CANNY_PARAMETERS_NUMBER))
+        parentz, parentz_fitness = select_mating_pool(new_population, fit, PARENTS_MATING_NUMBER)
+        offspring_crossover = crossover(parentz, parentz_fitness, offspring_size=(
+            population_size[0] - parentz.shape[0], CANNY_PARAMETERS_NUMBER))
         offspring_mutation = mutation(offspring_crossover)
-        new_population[0:parents.shape[0], :] = parents
-        new_population[parents.shape[0]:, :] = offspring_mutation
+        new_population[0:parentz.shape[0], :] = parentz
+        new_population[parentz.shape[0]:, :] = offspring_mutation
