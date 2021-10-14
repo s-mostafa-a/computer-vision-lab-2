@@ -171,7 +171,12 @@ if __name__ == '__main__':
     # 3 70 20
     # 5 70 20 60
     # 3 40 25 30
-    dtc = canny(image=img, weak=wk, strong=stn, cutoff_frequency=5, alpha=79, low=9, high=26)
+    # 3 45 31 57
+    # 3 49 22 32
+    # 3 23 25 37
+    # 3 40 18 35
+    # 3 53 15 26
+    dtc = canny(image=img, weak=wk, strong=stn, cutoff_frequency=3, alpha=53, low=15, high=30)
 
     plt.imshow(dtc, cmap='gray')
     plt.show()

@@ -3,8 +3,8 @@ from code.canny import canny, quality_assessment
 from PIL import Image
 
 CANNY_PARAMETERS_NUMBER = 4
-SOLUTION_PER_POPULATION = 8
-PARENTS_MATING_NUMBER = 4
+SOLUTION_PER_POPULATION = 20
+PARENTS_MATING_NUMBER = 10
 
 
 def population_fitness(image, weak, strong, ground_truth, population):
@@ -16,7 +16,7 @@ def population_fitness(image, weak, strong, ground_truth, population):
                           high=population[gene_i, 3])
         true_positive_rate, false_positive_rate, accuracy = quality_assessment(
             detection=detection, ground_truth=ground_truth)
-        fitness.append(true_positive_rate + accuracy - false_positive_rate)
+        fitness.append(true_positive_rate + accuracy)
     return np.array(fitness)
 
 
@@ -74,21 +74,25 @@ if __name__ == '__main__':
     population_size = (SOLUTION_PER_POPULATION, CANNY_PARAMETERS_NUMBER)
     new_population = []
     cutoff_normal_dist = []
-    first_half_dist_for_cutoff = np.array([i for i in range(9) for _ in range(i) if i % 2 != 0])
-    second_half_dist_for_cutoff = 18 - first_half_dist_for_cutoff
+    first_half_dist_for_cutoff = np.array([i for i in range(6) for _ in range(i) if i % 2 != 0])
+    second_half_dist_for_cutoff = 12 - first_half_dist_for_cutoff
     dist_for_cutoff = np.concatenate((first_half_dist_for_cutoff, second_half_dist_for_cutoff))
-
     for _ in range(SOLUTION_PER_POPULATION):
-        first_half_dist_for_cutoff = np.array(
-            [i for i in range(9) for _ in range(i) if i % 2 != 0])
-        second_half_dist_for_cutoff = 18 - first_half_dist_for_cutoff
-        dist_for_cutoff = np.concatenate((first_half_dist_for_cutoff, second_half_dist_for_cutoff))
         cutoff = np.random.choice(dist_for_cutoff)
 
         alpha = np.random.randint(15, 75)
-        low = np.random.randint(10, 100)
-        high = np.random.randint(low + 1, 103)
+        low = np.random.randint(1, 40)
+        high = np.random.randint(low + 1, 80)
         new_population.append([cutoff, alpha, low, high])
+
+    # new_population = np.array([[3, 45, 31, 57],
+    #                            [5, 31, 7, 27],
+    #                            [3, 34, 16, 80],
+    #                            [5, 70, 27, 60],
+    #                            [5, 18, 8, 21],
+    #                            [7, 70, 15, 29],
+    #                            [5, 44, 10, 30],
+    #                            [5, 46, 3, 27]])
     new_population = np.array(new_population)
     print("First Generation:\n", new_population)
     num_generations = 500
