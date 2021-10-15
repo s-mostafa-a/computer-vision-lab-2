@@ -161,14 +161,16 @@ def loop_for_training(image, ground_truth, save_plots=True):
 if __name__ == '__main__':
     img = np.array(Image.open("../data/source/100075-original.jpg").convert('L'))
     gnd_trt = np.array(Image.open("../data/source/100075-reference.jpg").convert('L'))
+    # img = np.array(Image.open("../data/source/42049-original.jpg").convert('L'))
+    # gnd_trt = np.array(Image.open("../data/source/42049-reference.jpg").convert('L'))
     stn = 255
     wk = 128
     gnd_trt = np.invert(gnd_trt)
     gnd_trt[gnd_trt > wk] = stn
     gnd_trt[gnd_trt <= wk] = 0
     gnd_trt = gnd_trt / stn
-    # 5 45 10
-    # 3 70 20
+    # 5 45 10 20
+    # 3 70 20 40
     # 5 70 20 60
     # 3 40 25 30
     # 3 45 31 57
@@ -176,17 +178,8 @@ if __name__ == '__main__':
     # 3 23 25 37
     # 3 40 18 35
     # 3 53 15 26
-    dtc = canny(image=img, weak=wk, strong=stn, cutoff_frequency=3, alpha=53, low=15, high=30)
-
+    dtc = canny(image=img, weak=wk, strong=stn, cutoff_frequency=3, alpha=53, low=15, high=26)
+    plt.axis('off')
     plt.imshow(dtc, cmap='gray')
     plt.show()
     print(quality_assessment(detection=dtc, ground_truth=gnd_trt))
-    exit(0)
-
-    # gnd_trt = np.invert(gnd_trt)
-    # gnd_trt[gnd_trt > wk] = stn
-    # gnd_trt[gnd_trt <= wk] = 0
-    # gnd_trt = gnd_trt / stn
-    # print(quality_assessment(np.zeros_like(gnd_trt), gnd_trt))
-    # exit(0)
-    loop_for_training(image=img, ground_truth=gnd_trt)

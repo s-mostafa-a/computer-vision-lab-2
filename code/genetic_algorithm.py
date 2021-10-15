@@ -85,14 +85,6 @@ if __name__ == '__main__':
         high = np.random.randint(low + 1, 80)
         new_population.append([cutoff, alpha, low, high])
 
-    # new_population = np.array([[3, 45, 31, 57],
-    #                            [5, 31, 7, 27],
-    #                            [3, 34, 16, 80],
-    #                            [5, 70, 27, 60],
-    #                            [5, 18, 8, 21],
-    #                            [7, 70, 15, 29],
-    #                            [5, 44, 10, 30],
-    #                            [5, 46, 3, 27]])
     new_population = np.array(new_population)
     print("First Generation:\n", new_population)
     num_generations = 500
